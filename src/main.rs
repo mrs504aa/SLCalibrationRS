@@ -6,13 +6,13 @@ fn BandEnergy(Dc: f64, Om: f64, k: f64) -> f64 {
     return 0.5 * (Dc + (8.0 * (1.0 + (2.0 * k).cos()) * Om.powi(2) + Dc.powi(2)).sqrt());
 }
 
-fn GenerateDatabase() -> (Vec<f64>, Vec<f64>) {
+fn GenerateDatabase(RMin: f64, RMax: f64) -> (Vec<f64>, Vec<f64>) {
     let mut RatioList: Vec<f64> = vec![0.0; 20001];
     let mut BCList: Vec<f64> = vec![0.0; 20001];
     let (mut k, mut Sum): (f64, f64);
 
     for i in 0..20001 {
-        RatioList[i] = 2.0 * (i as f64) / 20000.0
+        RatioList[i] = RMin + (RMax - RMin) * (i as f64) / 20000.0
     }
 
     for i in 0..20001 {
@@ -50,7 +50,7 @@ fn Interpolate(xData: &Vec<f64>, yData: &Vec<f64>, x: f64) -> f64 {
 fn main() {
     let mut InputLine: String;
     let (mut BC, mut DC): (f64, f64);
-    let (RatioList, BCList): (Vec<f64>, Vec<f64>) = GenerateDatabase();
+    let (RatioListDefault, BCListDefault): (Vec<f64>, Vec<f64>) = GenerateDatabase(0.0, 2.0);
 
     loop {
         InputLine = String::new();
@@ -86,20 +86,21 @@ fn main() {
             }
         };
 
-        let Max: f64 = BCList.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
-        let Min: f64 = BCList.iter().cloned().fold(f64::INFINITY, f64::min);
+        let Max: f64 = BCListDefault
+            .iter()
+            .cloned()
+            .fold(f64::NEG_INFINITY, f64::max);
 
-        if BC / DC <= Min {
-            println!("Too small number !! Plz Remake database!");
-            continue;
-        }
         if BC / DC >= Max {
-            println!("Too big number !! Plz Remake database!");
-            continue;
+            println!("Too big number !! Remake database!");
+            let RUpperLimit: f64 = ((2.0 * BC / DC - 1.0).powi(2) - 1.0).sqrt() * 0.25;
+            let (RatioListTemp, BCListTemp): (Vec<f64>, Vec<f64>) = GenerateDatabase(2.0, RUpperLimit);
+            let Result: f64 = Interpolate(&BCListTemp, &RatioListTemp, BC / DC);
+            println!("The Rabi Frequency is {:.3} Gamma or MHz.", Result * DC);
+        } else {
+            let Result: f64 = Interpolate(&BCListDefault, &RatioListDefault, BC / DC);
+            println!("The Rabi Frequency is {:.3} Gamma or MHz.", Result * DC);
         }
-
-        let Result: f64 = Interpolate(&BCList, &RatioList, BC / DC);
-        println!("The Rabi Frequency is {:.3} Gamma or MHz.", Result * DC);
     }
 
     return ();
